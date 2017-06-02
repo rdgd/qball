@@ -1,8 +1,3 @@
-/*
-  In order to remove the message from the queue, your handler must return the message that is being processed
-  or your handler must return a promise which resolves the message being processed.
-*/
-
 let SQS;
 let QueueOwnerAWSAccountId;
 let intervalHandle;
@@ -37,14 +32,16 @@ function init (AWS, accountId, queueName, maxMessages = 10, interval = 3000) {
   SQS = new AWS.SQS();
 
   const API = { start, stop };
-  function stop () { clearInterval((() => intervalHandle)()); }
+
+  function stop () {
+    Promise.resolve(clearInterval((() => intervalHandle)())).then(() => API).catch(err => console.error(err));
+  }
+
   function start (handler) {
     return getQueueUrlByName(queueName)
-      .then(queue => {
-        intervalHandle = setInterval(processQueue.bind(null, queue.QueueUrl, handler, maxMessages), interval);
-        return API;
-      })
-      .catch(err => console.error(err.stack));
+      .then(queue => { intervalHandle = setInterval(processQueue.bind(null, queue.QueueUrl, handler, maxMessages), interval); })
+      .then(() => API)
+      .catch(err => console.error(err));
   }
 
   return API; 
